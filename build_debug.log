@@ -1,0 +1,42 @@
+
+> executive-dashboard@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.5
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+unhandledRejection Error: Cannot find module './682.js'
+Require stack:
+- C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\.next\server\webpack-runtime.js
+- C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\.next\server\pages\_document.js
+- C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\node_modules\next\dist\server\require.js
+- C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\node_modules\next\dist\server\load-components.js
+- C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\node_modules\next\dist\build\utils.js
+- C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\node_modules\next\dist\build\worker.js
+- C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\node_modules\next\dist\compiled\jest-worker\processChild.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1421:15)
+    at C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\node_modules\next\dist\server\require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+    at Module._load (node:internal/modules/cjs/loader:1227:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1504:12)
+    at mod.require (C:\Users\baabi\OneDrive\Desktop\executive-dashboard\executive-dashboard\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16) {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'C:\\Users\\baabi\\OneDrive\\Desktop\\executive-dashboard\\executive-dashboard\\.next\\server\\webpack-runtime.js',
+    'C:\\Users\\baabi\\OneDrive\\Desktop\\executive-dashboard\\executive-dashboard\\.next\\server\\pages\\_document.js',
+    'C:\\Users\\baabi\\OneDrive\\Desktop\\executive-dashboard\\executive-dashboard\\node_modules\\next\\dist\\server\\require.js',
+    'C:\\Users\\baabi\\OneDrive\\Desktop\\executive-dashboard\\executive-dashboard\\node_modules\\next\\dist\\server\\load-components.js',
+    'C:\\Users\\baabi\\OneDrive\\Desktop\\executive-dashboard\\executive-dashboard\\node_modules\\next\\dist\\build\\utils.js',
+    'C:\\Users\\baabi\\OneDrive\\Desktop\\executive-dashboard\\executive-dashboard\\node_modules\\next\\dist\\build\\worker.js',
+    'C:\\Users\\baabi\\OneDrive\\Desktop\\executive-dashboard\\executive-dashboard\\node_modules\\next\\dist\\compiled\\jest-worker\\processChild.js'
+  ]
+}

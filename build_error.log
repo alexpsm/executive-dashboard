@@ -1,0 +1,25 @@
+
+> executive-dashboard@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.5
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+Failed to compile.
+
+./app/api/ai/debug/route.ts:26:13
+Type error: Type '{ success: boolean; models?: string[] | undefined; error?: string | undefined; }' is not assignable to type '{ success: boolean; error: string; }'.
+  Types of property 'error' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+
+[0m [90m 24 |[39m[0m
+[0m [90m 25 |[39m         [36mtry[39m {[0m
+[0m[31m[1m>[22m[39m[90m 26 |[39m             ollamaStatus [33m=[39m [36mawait[39m ollamaClient[33m.[39mtestConnection()[0m
+[0m [90m    |[39m             [31m[1m^[22m[39m[0m
+[0m [90m 27 |[39m         } [36mcatch[39m (e[33m:[39m any) {[0m
+[0m [90m 28 |[39m             ollamaStatus [33m=[39m { success[33m:[39m [36mfalse[39m[33m,[39m error[33m:[39m e[33m.[39mmessage }[0m
+[0m [90m 29 |[39m         }[0m
