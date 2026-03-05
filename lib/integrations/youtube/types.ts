@@ -47,6 +47,16 @@ export interface YouTubeSyncResult {
     analytics?: YouTubeAnalytics
     avgVideoViews?: number
     avgShortsViews?: number
+    ytd?: {
+      views: number
+      videoViews: number
+      shortsViews: number
+      subscribersGained: number
+      adRevenue: number
+      engagementRate: number
+      videoEngagement: number
+      shortsEngagement: number
+    }
   }
   error?: string
 }

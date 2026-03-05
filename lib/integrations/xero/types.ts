@@ -54,6 +54,13 @@ export interface XeroSyncResult {
     transactions?: number
     revenue?: number
     expenses?: number
+    runningCosts?: {
+      thisYear: number
+      lastYear: number
+      saved: number
+      thisYearPeriod: { start: string; end: string }
+      lastYearPeriod: { start: string; end: string }
+    }
   }
   error?: string
 }

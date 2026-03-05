@@ -104,7 +104,7 @@ export async function GET() {
     const mediaTypes = mediaResponse.data?.data?.map((m: any) => m.media_type) || []
     results.tests.recentMediaTypes = {
       status: 'success',
-      types: [...new Set(mediaTypes)],
+      types: Array.from(new Set(mediaTypes)),
       note: 'Stories are not returned via /media endpoint - they use /stories'
     }
   } catch (error: any) {

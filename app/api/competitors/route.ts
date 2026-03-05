@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     .select('metric_month')
     .order('metric_month', { ascending: false })
 
-  const availableMonths = [...new Set(monthsData?.map(r => r.metric_month).filter(Boolean))]
+  const availableMonths = Array.from(new Set(monthsData?.map(r => r.metric_month).filter(Boolean)))
 
   // Default to current month or latest available
   const currentMonth = new Date().toISOString().slice(0, 7)

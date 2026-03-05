@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import { mondayClient } from '../integrations/monday'
-import { socialClient } from '../integrations/social'
 import { googleCalendarClient } from '../integrations/google-calendar'
 import { clickupClient } from '../integrations/clickup'
 

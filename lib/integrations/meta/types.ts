@@ -41,6 +41,22 @@ export interface InstagramSyncResult {
     avgReachPost?: number
     avgReachStory?: number
     engagementRate?: number
+    demographics?: {
+      genZPercent?: number
+      genZFollowers?: number
+      age13_17?: number
+      age18_24?: number
+    } | null
+    ytd?: {
+      postsCount?: number
+      followersGained?: number
+      followersMethod?: string
+      currentFollowers?: number
+      baseline?: number
+      engagementRate?: number
+      avgReachPost?: number
+      avgReachStory?: number
+    }
   }
   error?: string
 }
@@ -77,9 +93,34 @@ export interface FacebookSyncResult {
     page?: FacebookPage
     videos?: number
     totalViews?: number
+    totalPlays?: number
     views3s?: number
     views1min?: number
     platformRevenue?: number
+    demographics?: {
+      genZPercent?: number
+      genZFollowers?: number
+      age13_17?: number
+      age18_24?: number
+      age25_34?: number
+      age35_44?: number
+      age45_54?: number
+      age55_64?: number
+      age65plus?: number
+    } | null
+    ytd?: {
+      videoCount?: number
+      totalViews?: number
+      totalPlays?: number
+      views3s?: number
+      views1min?: number
+      followersGained?: number
+      followersMethod?: string
+      currentFollowers?: number
+      baseline?: number
+      platformRevenue?: number
+      revenueMethod?: string
+    }
   }
   error?: string
 }

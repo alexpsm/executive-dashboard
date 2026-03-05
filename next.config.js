@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
-// Force rebuild
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: [''],
+  // Disable static page generation - all pages will be server-rendered
+  output: 'standalone',
+  images: {
+    unoptimized: true,
   },
 }
 

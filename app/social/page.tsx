@@ -33,7 +33,7 @@ const METRIC_INFO: Record<string, string> = {
 
     // Facebook
     'Platform Revenue': 'YTD revenue from Facebook monetization (manual input - not available via API)',
-    'Total Views': 'Total video + post impressions during 2026 (excludes stories - not available via API)',
+    'FB Total Views': 'Total video + post impressions during 2026 (excludes stories - not available via API)',
     '3-Sec Views': 'Video views where the video played for at least 3 seconds',
     '1-Min Views': 'Estimated video views of 60+ seconds based on retention data',
 }
