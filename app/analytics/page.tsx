@@ -35,13 +35,13 @@ export default function SocialAnalytics() {
 
     // Extract platform-specific data from the grouped daily format
     // Each item in data is { date, youtube: {...}, instagram: {...}, ... }
+    // Include ALL dates so the chart shows a continuous timeline
     const getPlatformData = (platform: string) => {
-        return data
-            .filter(item => item[platform] !== null && item[platform] !== undefined)
-            .map(item => ({
-                metric_date: item.date,
-                ...item[platform]
-            }))
+        return data.map(item => ({
+            metric_date: item.date,
+            // Spread platform data if available, otherwise metrics will be undefined (shows as gap in chart)
+            ...(item[platform] || {})
+        }))
     }
 
     if (loading) return <div className="min-h-screen bg-navy-900 flex items-center justify-center text-white">Loading Analytics...</div>
@@ -182,6 +182,7 @@ function AnalyticsSection({ title, icon, data, metrics }: any) {
                                         fillOpacity={1}
                                         fill={`url(#color-${metric.key})`}
                                         animationDuration={1500}
+                                        connectNulls={true}
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
