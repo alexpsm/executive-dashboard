@@ -83,6 +83,7 @@ export default function Dashboard() {
   const [tiktokFollowers, setTiktokFollowers] = useState('')
   const [tiktokEngagement, setTiktokEngagement] = useState('')
   const [tiktokReach, setTiktokReach] = useState('')
+  const [tiktokPricePost, setTiktokPricePost] = useState('')
 
   // Generate month options: Jan 2026 → current month
   const monthOptions = (() => {
@@ -491,6 +492,15 @@ export default function Dashboard() {
                       <Check className="w-4 h-4 text-green-500" />
                     </button>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-400 whitespace-nowrap">Est. Price/Post (£):</label>
+                    <input type="number" value={tiktokPricePost} onChange={e => setTiktokPricePost(e.target.value)}
+                      placeholder="500" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-20" />
+                    <button onClick={() => { saveSocialMetric('tiktok', 'tiktok_price_per_post', parseFloat(tiktokPricePost)); setTiktokPricePost('') }}
+                      disabled={saving || !tiktokPricePost} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
+                      <Check className="w-4 h-4 text-green-500" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -498,6 +508,7 @@ export default function Dashboard() {
               <MetricCard label="Followers Gained" current={tt.followers_gained || tt.followers || 0} target={KPI_GOALS_2026.TIKTOK.NEW_FOLLOWERS} unit="" />
               <MetricCard label="Engagement Rate" current={tt.engagement_rate || tt.engagement || 0} target={KPI_GOALS_2026.TIKTOK.ENGAGEMENT_RATE} unit="%" />
               <MetricCard label="Reach Per Post" current={tt.reach || 0} target={KPI_GOALS_2026.TIKTOK.REACH_PER_POST} unit="" info={METRIC_INFO['Reach Per Post']} />
+              <MetricCard label="Est. Price/Post" current={tt.estimated_price_post || 0} target={KPI_GOALS_2026.TIKTOK.PRICE_PER_POST} unit="£" />
             </div>
           </section>
 

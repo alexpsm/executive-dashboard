@@ -190,6 +190,7 @@ export async function GET() {
         agg.views += m.views || 0
         // avg_reach_post is a YTD average (same value each day) — use latest non-null
         agg.avg_reach_post = m.avg_reach_post || agg.avg_reach_post
+        agg.estimated_price_post = m.estimated_price_post || agg.estimated_price_post
         // Track engagement for averaging
         if (m.engagement > 0) {
           agg.engagement_sum += m.engagement
@@ -362,6 +363,7 @@ export async function GET() {
         reach: tiktok.avg_reach_post || 0,
         avg_reach_post: tiktok.avg_reach_post || 0,
         for_you_rate: tiktok.for_you_rate || 0,
+        estimated_price_post: tiktok.estimated_price_post || 0,
         // Legacy
         followers: tiktok.followers || 0,
         engagement: tiktok.engagement || 0
