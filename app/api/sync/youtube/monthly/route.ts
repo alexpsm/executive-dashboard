@@ -248,36 +248,36 @@ export async function GET(request: NextRequest) {
         .map(item => item.contentDetails?.videoId)
         .filter(Boolean) as string[]
 
-      if (ytdVideoIds.length > 0) {
-        // Check which are Shorts
-        console.log(`Calculating YTD averages: checking ${ytdVideoIds.length} videos...`)
-        const ytdShortsMap = await checkIfShortsBatch(ytdVideoIds)
+      // Get YTD views for ALL videos that received views this year (not just 2026-published)
+      // This gives the true channel-wide shorts/long-form split
+      const ytdViewsMap = new Map<string, number>()
+      try {
+        const ytdAnalytics = await analytics.reports.query({
+          ids: 'channel==MINE',
+          startDate: ytdStartDate,
+          endDate,
+          metrics: 'views',
+          dimensions: 'video',
+          sort: '-views',
+          maxResults: 200
+        })
 
-        // Get YTD views for all videos published this year
-        const ytdViewsMap = new Map<string, number>()
-        try {
-          const ytdAnalytics = await analytics.reports.query({
-            ids: 'channel==MINE',
-            startDate: ytdStartDate,
-            endDate,
-            metrics: 'views',
-            dimensions: 'video',
-            sort: '-views',
-            maxResults: 200
-          })
-
-          for (const row of ytdAnalytics.data.rows || []) {
-            ytdViewsMap.set(row[0] as string, parseInt(row[1] as string) || 0)
-          }
-        } catch (e) {
-          console.log('YTD video analytics not available')
+        for (const row of ytdAnalytics.data.rows || []) {
+          ytdViewsMap.set(row[0] as string, parseInt(row[1] as string) || 0)
         }
+      } catch (e) {
+        console.log('YTD video analytics not available')
+      }
 
-        // Sum up YTD totals by type
-        for (const videoId of ytdVideoIds) {
+      if (ytdViewsMap.size > 0) {
+        // Check ALL videos that got views (including pre-2026 content) for Short status
+        const allVideoIds = Array.from(ytdViewsMap.keys())
+        console.log(`Checking Short status for ${allVideoIds.length} videos that got views YTD...`)
+        const ytdShortsMap = await checkIfShortsBatch(allVideoIds)
+
+        // Sum up views by type across the entire channel
+        for (const [videoId, views] of ytdViewsMap) {
           const isShort = ytdShortsMap.get(videoId) || false
-          const views = ytdViewsMap.get(videoId) || 0
-
           if (isShort) {
             ytdShortsCount++
             ytdShortsViews += views
@@ -287,7 +287,7 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        console.log(`YTD totals: ${ytdVideosCount} videos (${ytdVideoViews} views), ${ytdShortsCount} shorts (${ytdShortsViews} views)`)
+        console.log(`YTD totals (all channel views): ${ytdVideosCount} videos (${ytdVideoViews} views), ${ytdShortsCount} shorts (${ytdShortsViews} views)`)
       }
     }
 
