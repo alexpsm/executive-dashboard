@@ -85,11 +85,14 @@ export default function Dashboard() {
   const [tiktokReach, setTiktokReach] = useState('')
   const [tiktokPricePost, setTiktokPricePost] = useState('')
 
-  // Instagram story CSV upload
+  // Instagram story CSV upload + per-month saved values
   const [igCsvParsed, setIgCsvParsed] = useState<{ month: string; avgReach: number; count: number }[]>([])
   const [igCsvSaving, setIgCsvSaving] = useState(false)
   const [igCsvSaved, setIgCsvSaved] = useState(false)
-  const [igSavedStoryMonths, setIgSavedStoryMonths] = useState<Record<string, number>>({})
+  // igSavedValues[month][metric_key] = value — used to pre-fill inputs and lock CSV months
+  const [igSavedValues, setIgSavedValues] = useState<Record<string, Record<string, number>>>({})
+  // TikTok per-month saved price
+  const [ttSavedValues, setTtSavedValues] = useState<Record<string, number>>({})
 
   // Generate month options: Jan 2026 → current month
   const monthOptions = (() => {
@@ -188,10 +191,33 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ metrics: [{ platform, metric_key: metricKey, metric_value: value, metric_date: `${selectedMonth}-01` }] })
       })
+      // Optimistically update local saved values so inputs pre-fill correctly
+      if (platform === 'instagram') {
+        setIgSavedValues(prev => ({ ...prev, [selectedMonth]: { ...(prev[selectedMonth] || {}), [metricKey]: value } }))
+      }
+      if (platform === 'tiktok' && metricKey === 'tiktok_price_per_post') {
+        setTtSavedValues(prev => ({ ...prev, [selectedMonth]: value }))
+      }
       await fetchData()
     } catch (err) { console.error('Failed to save:', err) }
     setSaving(false)
   }
+
+  // Pre-fill inputs when month changes or panel opens
+  useEffect(() => {
+    if (!showInstagramManual) return
+    const vals = igSavedValues[selectedMonth] || {}
+    setIgStoryReach(vals.instagram_avg_reach_story ? String(Math.round(vals.instagram_avg_reach_story)) : '')
+    setIgPricePost(vals.instagram_price_per_post ? String(vals.instagram_price_per_post) : '')
+    setIgPriceStory(vals.instagram_price_per_story ? String(vals.instagram_price_per_story) : '')
+    setIgCsvParsed([])
+    setIgCsvSaved(false)
+  }, [selectedMonth, showInstagramManual, igSavedValues])
+
+  useEffect(() => {
+    if (!showTikTokManual) return
+    setTiktokPricePost(ttSavedValues[selectedMonth] ? String(ttSavedValues[selectedMonth]) : '')
+  }, [selectedMonth, showTikTokManual, ttSavedValues])
 
   const parseStoryCsv = (file: File) => {
     const reader = new FileReader()
@@ -238,24 +264,43 @@ export default function Dashboard() {
     reader.readAsText(file)
   }
 
-  const loadSavedStoryMonths = async () => {
+  const loadInstagramSavedValues = async () => {
     try {
-      const res = await fetch('/api/manual?metric_key=instagram_avg_reach_story&platform=instagram')
+      const res = await fetch('/api/manual?platform=instagram')
       const data = await res.json()
-      const map: Record<string, number> = {}
+      const byMonth: Record<string, Record<string, number>> = {}
       for (const m of data.metrics || []) {
-        const monthKey = m.metric_date?.slice(0, 7) // "2026-01-01" → "2026-01"
-        if (monthKey) map[monthKey] = m.metric_value
+        const mo = m.metric_date?.slice(0, 7)
+        if (!mo) continue
+        if (!byMonth[mo]) byMonth[mo] = {}
+        byMonth[mo][m.metric_key] = m.metric_value
       }
-      setIgSavedStoryMonths(map)
+      setIgSavedValues(byMonth)
+    } catch (e) { console.error(e) }
+  }
+
+  const loadTikTokSavedValues = async () => {
+    try {
+      const res = await fetch('/api/manual?metric_key=tiktok_price_per_post&platform=tiktok')
+      const data = await res.json()
+      const byMonth: Record<string, number> = {}
+      for (const m of data.metrics || []) {
+        const mo = m.metric_date?.slice(0, 7)
+        if (mo) byMonth[mo] = m.metric_value
+      }
+      setTtSavedValues(byMonth)
     } catch (e) { console.error(e) }
   }
 
   const deleteStoryMonth = async (month: string) => {
     try {
       await fetch(`/api/manual?metric_key=instagram_avg_reach_story&metric_date=${month}-01`, { method: 'DELETE' })
-      setIgSavedStoryMonths(prev => { const n = { ...prev }; delete n[month]; return n })
-      setIgCsvParsed(prev => prev.filter(p => p.month !== month))
+      setIgSavedValues(prev => {
+        const n = { ...prev }
+        if (n[month]) { const mo = { ...n[month] }; delete mo.instagram_avg_reach_story; n[month] = mo }
+        return n
+      })
+      setIgCsvParsed([])
       setIgCsvSaved(false)
     } catch (e) { console.error(e) }
   }
@@ -263,16 +308,19 @@ export default function Dashboard() {
   const saveStoryCsvData = async () => {
     setIgCsvSaving(true)
     try {
-      const newMonths = igCsvParsed.filter(p => !igSavedStoryMonths[p.month])
-      for (const { month, avgReach } of newMonths) {
+      const monthData = igCsvParsed.find(p => p.month === selectedMonth)
+      if (monthData && !igSavedValues[selectedMonth]?.instagram_avg_reach_story) {
         await fetch('/api/manual', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            metrics: [{ platform: 'instagram', metric_key: 'instagram_avg_reach_story', metric_value: avgReach, metric_date: `${month}-01` }]
+            metrics: [{ platform: 'instagram', metric_key: 'instagram_avg_reach_story', metric_value: monthData.avgReach, metric_date: `${selectedMonth}-01` }]
           })
         })
-        setIgSavedStoryMonths(prev => ({ ...prev, [month]: avgReach }))
+        setIgSavedValues(prev => ({
+          ...prev,
+          [selectedMonth]: { ...(prev[selectedMonth] || {}), instagram_avg_reach_story: monthData.avgReach }
+        }))
       }
       setIgCsvSaved(true)
       setIgCsvParsed([])
@@ -483,7 +531,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 mb-4 p-4 bg-navy-800 rounded-xl border border-pink-900/30">
               <div className="bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 p-2 rounded-lg"><Instagram className="w-5 h-5 text-white" /></div>
               <h3 className="text-xl font-bold text-white">Instagram</h3>
-              <button onClick={() => { const next = !showInstagramManual; setShowInstagramManual(next); if (next) loadSavedStoryMonths() }}
+              <button onClick={() => { const next = !showInstagramManual; setShowInstagramManual(next); if (next) loadInstagramSavedValues() }}
                 className="ml-auto text-sm bg-navy-900 px-3 py-1 rounded-full text-gray-400 hover:text-white hover:bg-navy-700 transition-colors flex items-center gap-1">
                 <Settings className="w-3 h-3" /> Manual Input
               </button>
@@ -502,7 +550,7 @@ export default function Dashboard() {
                     <label className="text-xs text-gray-400 whitespace-nowrap">Avg Story Reach:</label>
                     <input type="number" value={igStoryReach} onChange={e => setIgStoryReach(e.target.value)}
                       placeholder="50000" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-24" />
-                    <button onClick={() => { saveSocialMetric('instagram', 'instagram_avg_reach_story', parseFloat(igStoryReach)); setIgStoryReach('') }}
+                    <button onClick={() => saveSocialMetric('instagram', 'instagram_avg_reach_story', parseFloat(igStoryReach))}
                       disabled={saving || !igStoryReach} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
                       <Check className="w-4 h-4 text-green-500" />
                     </button>
@@ -511,7 +559,7 @@ export default function Dashboard() {
                     <label className="text-xs text-gray-400 whitespace-nowrap">Est. Price/Post (£):</label>
                     <input type="number" value={igPricePost} onChange={e => setIgPricePost(e.target.value)}
                       placeholder="500" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-20" />
-                    <button onClick={() => { saveSocialMetric('instagram', 'instagram_price_per_post', parseFloat(igPricePost)); setIgPricePost('') }}
+                    <button onClick={() => saveSocialMetric('instagram', 'instagram_price_per_post', parseFloat(igPricePost))}
                       disabled={saving || !igPricePost} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
                       <Check className="w-4 h-4 text-green-500" />
                     </button>
@@ -520,69 +568,46 @@ export default function Dashboard() {
                     <label className="text-xs text-gray-400 whitespace-nowrap">Est. Price/Story (£):</label>
                     <input type="number" value={igPriceStory} onChange={e => setIgPriceStory(e.target.value)}
                       placeholder="200" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-20" />
-                    <button onClick={() => { saveSocialMetric('instagram', 'instagram_price_per_story', parseFloat(igPriceStory)); setIgPriceStory('') }}
+                    <button onClick={() => saveSocialMetric('instagram', 'instagram_price_per_story', parseFloat(igPriceStory))}
                       disabled={saving || !igPriceStory} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
                       <Check className="w-4 h-4 text-green-500" />
                     </button>
                   </div>
                 </div>
 
-                {/* Story Reach CSV Upload */}
+                {/* Story Reach CSV Upload — scoped to selected month */}
                 <div className="mt-4 pt-4 border-t border-navy-700">
-                  <p className="text-xs text-gray-400 mb-3">Story Reach — Business Manager CSV Export</p>
-
-                  {/* Already saved months */}
-                  {Object.keys(igSavedStoryMonths).length > 0 && (
-                    <div className="mb-3 space-y-1.5">
-                      {Object.entries(igSavedStoryMonths).sort(([a], [b]) => a.localeCompare(b)).map(([month, avgReach]) => {
-                        const [yr, mo] = month.split('-')
-                        const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+                  <p className="text-xs text-gray-400 mb-3">Story Reach — Business Manager CSV</p>
+                  {igSavedValues[selectedMonth]?.instagram_avg_reach_story ? (
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-white font-medium">{Number(igSavedValues[selectedMonth].instagram_avg_reach_story).toLocaleString()} avg reach saved</span>
+                      <button onClick={() => deleteStoryMonth(selectedMonth)} className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors">
+                        <Trash2 className="w-3 h-3" /> Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="flex items-center gap-2 cursor-pointer w-fit">
+                        <span className="text-xs bg-navy-900 border border-navy-600 rounded px-3 py-1.5 text-gray-300 hover:text-white hover:border-navy-500 transition-colors">
+                          Upload Story CSV
+                        </span>
+                        <input type="file" accept=".csv" className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) { parseStoryCsv(f); setIgCsvSaved(false) } e.target.value = '' }} />
+                      </label>
+                      {igCsvParsed.length > 0 && (() => {
+                        const monthData = igCsvParsed.find(p => p.month === selectedMonth)
+                        if (!monthData) return <p className="text-xs text-gray-500 mt-2">No data for this month in the CSV.</p>
                         return (
-                          <div key={month} className="flex items-center gap-3 text-xs">
-                            <span className="text-gray-400 w-28">{label}</span>
-                            <span className="text-white font-medium">{Number(avgReach).toLocaleString()} avg reach</span>
-                            <button onClick={() => deleteStoryMonth(month)} className="ml-auto flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors">
-                              <Trash2 className="w-3 h-3" /> Remove
+                          <div className="mt-2 space-y-1.5">
+                            <p className="text-xs text-white font-medium">{monthData.avgReach.toLocaleString()} avg reach <span className="text-gray-500">({monthData.count} stories)</span></p>
+                            <button onClick={saveStoryCsvData} disabled={igCsvSaving || igCsvSaved}
+                              className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs rounded border border-green-500/30 disabled:opacity-50 transition-colors">
+                              {igCsvSaved ? '✓ Saved' : igCsvSaving ? 'Saving...' : 'Save to Dashboard'}
                             </button>
                           </div>
                         )
-                      })}
-                    </div>
-                  )}
-
-                  {/* Upload button */}
-                  <label className="flex items-center gap-2 cursor-pointer w-fit">
-                    <span className="text-xs bg-navy-900 border border-navy-600 rounded px-3 py-1.5 text-gray-300 hover:text-white hover:border-navy-500 transition-colors">
-                      Upload Story CSV
-                    </span>
-                    <input type="file" accept=".csv" className="hidden"
-                      onChange={e => { const f = e.target.files?.[0]; if (f) { parseStoryCsv(f); setIgCsvSaved(false) } e.target.value = '' }} />
-                  </label>
-
-                  {/* Parsed preview */}
-                  {igCsvParsed.length > 0 && (
-                    <div className="mt-3 space-y-1.5">
-                      {igCsvParsed.map(({ month, avgReach, count }) => {
-                        const [yr, mo] = month.split('-')
-                        const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
-                        const isLocked = !!igSavedStoryMonths[month]
-                        return (
-                          <div key={month} className="flex items-center gap-3 text-xs">
-                            <span className={`w-28 ${isLocked ? 'text-gray-600' : 'text-gray-500'}`}>{label}</span>
-                            {isLocked
-                              ? <span className="text-gray-600 italic">Already saved — remove first to update</span>
-                              : <><span className="text-white font-medium">{avgReach.toLocaleString()} avg reach</span><span className="text-gray-500">({count} stories)</span></>
-                            }
-                          </div>
-                        )
-                      })}
-                      {igCsvParsed.some(p => !igSavedStoryMonths[p.month]) && (
-                        <button onClick={saveStoryCsvData} disabled={igCsvSaving || igCsvSaved}
-                          className="mt-2 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs rounded border border-green-500/30 disabled:opacity-50 transition-colors">
-                          {igCsvSaved ? '✓ Saved' : igCsvSaving ? 'Saving...' : 'Save to Dashboard'}
-                        </button>
-                      )}
-                    </div>
+                      })()}
+                    </>
                   )}
                 </div>
               </div>
@@ -602,7 +627,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 mb-4 p-4 bg-navy-800 rounded-xl border border-gray-700">
               <div className="bg-black border border-gray-600 p-2 rounded-lg"><Video className="w-5 h-5 text-white" /></div>
               <h3 className="text-xl font-bold text-white">TikTok</h3>
-              <button onClick={() => setShowTikTokManual(!showTikTokManual)}
+              <button onClick={() => { const next = !showTikTokManual; setShowTikTokManual(next); if (next) loadTikTokSavedValues() }}
                 className="ml-auto text-sm bg-navy-900 px-3 py-1 rounded-full text-gray-400 hover:text-white hover:bg-navy-700 transition-colors flex items-center gap-1">
                 <Settings className="w-3 h-3" /> Manual Input
               </button>
@@ -610,49 +635,20 @@ export default function Dashboard() {
             {showTikTokManual && (
               <div className="mb-4 p-4 bg-navy-800/50 rounded-lg border border-navy-700">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm text-gray-300 font-medium">Manual Data Entry (from TikTok Analytics)</p>
+                  <p className="text-sm text-gray-300 font-medium">HypeAuditor Est. Price/Post</p>
                   <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
                     className="px-2 py-1 bg-navy-900 border border-navy-600 rounded text-cream-100 text-xs">
                     {monthOptions.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
                   </select>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400 whitespace-nowrap">Followers Gained:</label>
-                    <input type="number" value={tiktokFollowers} onChange={e => setTiktokFollowers(e.target.value)}
-                      placeholder="10000" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-24" />
-                    <button onClick={() => { saveSocialMetric('tiktok', 'tiktok_followers_gained', parseFloat(tiktokFollowers)); setTiktokFollowers('') }}
-                      disabled={saving || !tiktokFollowers} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
-                      <Check className="w-4 h-4 text-green-500" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400 whitespace-nowrap">Engagement Rate (%):</label>
-                    <input type="number" step="0.1" value={tiktokEngagement} onChange={e => setTiktokEngagement(e.target.value)}
-                      placeholder="5.0" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-20" />
-                    <button onClick={() => { saveSocialMetric('tiktok', 'tiktok_engagement_rate', parseFloat(tiktokEngagement)); setTiktokEngagement('') }}
-                      disabled={saving || !tiktokEngagement} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
-                      <Check className="w-4 h-4 text-green-500" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400 whitespace-nowrap">Reach Per Post:</label>
-                    <input type="number" value={tiktokReach} onChange={e => setTiktokReach(e.target.value)}
-                      placeholder="100000" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-24" />
-                    <button onClick={() => { saveSocialMetric('tiktok', 'tiktok_reach_per_post', parseFloat(tiktokReach)); setTiktokReach('') }}
-                      disabled={saving || !tiktokReach} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
-                      <Check className="w-4 h-4 text-green-500" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400 whitespace-nowrap">Est. Price/Post (£):</label>
-                    <input type="number" value={tiktokPricePost} onChange={e => setTiktokPricePost(e.target.value)}
-                      placeholder="500" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-20" />
-                    <button onClick={() => { saveSocialMetric('tiktok', 'tiktok_price_per_post', parseFloat(tiktokPricePost)); setTiktokPricePost('') }}
-                      disabled={saving || !tiktokPricePost} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
-                      <Check className="w-4 h-4 text-green-500" />
-                    </button>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-400 whitespace-nowrap">Est. Price/Post (£):</label>
+                  <input type="number" value={tiktokPricePost} onChange={e => setTiktokPricePost(e.target.value)}
+                    placeholder="500" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-24" />
+                  <button onClick={() => saveSocialMetric('tiktok', 'tiktok_price_per_post', parseFloat(tiktokPricePost))}
+                    disabled={saving || !tiktokPricePost} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
+                    <Check className="w-4 h-4 text-green-500" />
+                  </button>
                 </div>
               </div>
             )}
@@ -669,42 +665,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 mb-4 p-4 bg-navy-800 rounded-xl border border-blue-900/30">
               <div className="bg-blue-600 p-2 rounded-lg"><Facebook className="w-5 h-5 text-white" /></div>
               <h3 className="text-xl font-bold text-white">Facebook</h3>
-              <button onClick={() => setShowFacebookManual(!showFacebookManual)}
-                className="ml-auto text-sm bg-navy-900 px-3 py-1 rounded-full text-gray-400 hover:text-white hover:bg-navy-700 transition-colors flex items-center gap-1">
-                <Settings className="w-3 h-3" /> Manual Input
-              </button>
             </div>
-            {showFacebookManual && (
-              <div className="mb-4 p-4 bg-navy-800/50 rounded-lg border border-blue-900/50">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm text-gray-300 font-medium">Manual Data Entry (Facebook Insights)</p>
-                  <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
-                    className="px-2 py-1 bg-navy-900 border border-navy-600 rounded text-cream-100 text-xs">
-                    {monthOptions.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400 whitespace-nowrap">Platform Revenue (£):</label>
-                    <input type="number" value={fbRevenue} onChange={e => setFbRevenue(e.target.value)}
-                      placeholder="5000" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-24" />
-                    <button onClick={() => { saveSocialMetric('facebook', 'facebook_platform_revenue', parseFloat(fbRevenue)); setFbRevenue('') }}
-                      disabled={saving || !fbRevenue} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
-                      <Check className="w-4 h-4 text-green-500" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400 whitespace-nowrap">Story Impressions:</label>
-                    <input type="number" value={fbStoryImpressions} onChange={e => setFbStoryImpressions(e.target.value)}
-                      placeholder="500000" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-28" />
-                    <button onClick={() => { saveSocialMetric('facebook', 'facebook_story_impressions', parseFloat(fbStoryImpressions)); setFbStoryImpressions('') }}
-                      disabled={saving || !fbStoryImpressions} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
-                      <Check className="w-4 h-4 text-green-500" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <MetricCard label="Followers Gained" current={fb.followers_gained || fb.followers || 0} target={KPI_GOALS_2026.FACEBOOK.FOLLOWERS} unit="" />
               <MetricCard label="Platform Revenue" current={fb.platform_revenue || 0} target={KPI_GOALS_2026.FACEBOOK.REVENUE} unit="£" info={METRIC_INFO['Platform Revenue']} highlight />
