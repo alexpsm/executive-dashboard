@@ -39,6 +39,7 @@ export default function Header({ overdueCount = 0, overdueProjects = 0, onSync, 
     { id: 'dashboard', href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analytics', href: '/analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'competitors', href: '/competitors', label: 'Competitors', icon: Swords },
+    { id: 'forecast', href: '/forecast', label: 'Forecast', icon: TrendingUp },
   ]
 
   const isActive = (href: string) => pathname === href
