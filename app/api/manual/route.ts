@@ -177,6 +177,23 @@ export async function DELETE(request: Request) {
 
     if (error) throw error
 
+    // Also clear the corresponding social_metrics field
+    const socialFieldMap: Record<string, { platform: string; field: string }> = {
+      'instagram_avg_reach_story': { platform: 'instagram', field: 'story_reach' },
+      'instagram_price_per_post': { platform: 'instagram', field: 'estimated_price_post' },
+      'instagram_price_per_story': { platform: 'instagram', field: 'estimated_price_story' },
+      'facebook_story_impressions': { platform: 'facebook', field: 'story_impressions' },
+      'tiktok_price_per_post': { platform: 'tiktok', field: 'estimated_price_post' },
+    }
+    const sf = socialFieldMap[metricKey]
+    if (sf) {
+      await supabase
+        .from('social_metrics')
+        .update({ [sf.field]: null })
+        .eq('platform', sf.platform)
+        .eq('metric_date', metricDate)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Metric deleted'

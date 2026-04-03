@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Header from '@/components/Header'
 import {
-  Users, DollarSign, Target, Briefcase, Edit3, Check,
-  Youtube, Instagram, Facebook, Video, Info, Settings
+  Users, DollarSign, Target, Briefcase, Check, TrendingDown,
+  Youtube, Instagram, Facebook, Video, Info, Settings, Trash2
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { KPI_GOALS_2026 } from '@/lib/goals'
@@ -89,6 +89,7 @@ export default function Dashboard() {
   const [igCsvParsed, setIgCsvParsed] = useState<{ month: string; avgReach: number; count: number }[]>([])
   const [igCsvSaving, setIgCsvSaving] = useState(false)
   const [igCsvSaved, setIgCsvSaved] = useState(false)
+  const [igSavedStoryMonths, setIgSavedStoryMonths] = useState<Record<string, number>>({})
 
   // Generate month options: Jan 2026 → current month
   const monthOptions = (() => {
@@ -237,10 +238,33 @@ export default function Dashboard() {
     reader.readAsText(file)
   }
 
+  const loadSavedStoryMonths = async () => {
+    try {
+      const res = await fetch('/api/manual?metric_key=instagram_avg_reach_story&platform=instagram')
+      const data = await res.json()
+      const map: Record<string, number> = {}
+      for (const m of data.metrics || []) {
+        const monthKey = m.metric_date?.slice(0, 7) // "2026-01-01" → "2026-01"
+        if (monthKey) map[monthKey] = m.metric_value
+      }
+      setIgSavedStoryMonths(map)
+    } catch (e) { console.error(e) }
+  }
+
+  const deleteStoryMonth = async (month: string) => {
+    try {
+      await fetch(`/api/manual?metric_key=instagram_avg_reach_story&metric_date=${month}-01`, { method: 'DELETE' })
+      setIgSavedStoryMonths(prev => { const n = { ...prev }; delete n[month]; return n })
+      setIgCsvParsed(prev => prev.filter(p => p.month !== month))
+      setIgCsvSaved(false)
+    } catch (e) { console.error(e) }
+  }
+
   const saveStoryCsvData = async () => {
     setIgCsvSaving(true)
     try {
-      for (const { month, avgReach } of igCsvParsed) {
+      const newMonths = igCsvParsed.filter(p => !igSavedStoryMonths[p.month])
+      for (const { month, avgReach } of newMonths) {
         await fetch('/api/manual', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -248,8 +272,10 @@ export default function Dashboard() {
             metrics: [{ platform: 'instagram', metric_key: 'instagram_avg_reach_story', metric_value: avgReach, metric_date: `${month}-01` }]
           })
         })
+        setIgSavedStoryMonths(prev => ({ ...prev, [month]: avgReach }))
       }
       setIgCsvSaved(true)
+      setIgCsvParsed([])
       await fetchData()
     } catch (e) { console.error(e) }
     setIgCsvSaving(false)
@@ -392,7 +418,7 @@ export default function Dashboard() {
                   <p className="text-right text-xs font-bold text-gold-500 mt-1">{pct(stats?.cost_savings || 0, KPI_GOALS_2026.COST_SAVINGS)}%</p>
                 </div>
                 <div className="w-10 h-10 bg-gold-500/20 rounded-lg flex items-center justify-center">
-                  <Edit3 className="w-5 h-5 text-gold-500" />
+                  <TrendingDown className="w-5 h-5 text-gold-500" />
                 </div>
               </div>
             </div>
@@ -457,7 +483,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 mb-4 p-4 bg-navy-800 rounded-xl border border-pink-900/30">
               <div className="bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 p-2 rounded-lg"><Instagram className="w-5 h-5 text-white" /></div>
               <h3 className="text-xl font-bold text-white">Instagram</h3>
-              <button onClick={() => setShowInstagramManual(!showInstagramManual)}
+              <button onClick={() => { const next = !showInstagramManual; setShowInstagramManual(next); if (next) loadSavedStoryMonths() }}
                 className="ml-auto text-sm bg-navy-900 px-3 py-1 rounded-full text-gray-400 hover:text-white hover:bg-navy-700 transition-colors flex items-center gap-1">
                 <Settings className="w-3 h-3" /> Manual Input
               </button>
@@ -503,31 +529,59 @@ export default function Dashboard() {
 
                 {/* Story Reach CSV Upload */}
                 <div className="mt-4 pt-4 border-t border-navy-700">
-                  <p className="text-xs text-gray-500 mb-2">Or calculate avg story reach automatically from a Business Manager CSV export:</p>
+                  <p className="text-xs text-gray-400 mb-3">Story Reach — Business Manager CSV Export</p>
+
+                  {/* Already saved months */}
+                  {Object.keys(igSavedStoryMonths).length > 0 && (
+                    <div className="mb-3 space-y-1.5">
+                      {Object.entries(igSavedStoryMonths).sort(([a], [b]) => a.localeCompare(b)).map(([month, avgReach]) => {
+                        const [yr, mo] = month.split('-')
+                        const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+                        return (
+                          <div key={month} className="flex items-center gap-3 text-xs">
+                            <span className="text-gray-400 w-28">{label}</span>
+                            <span className="text-white font-medium">{Number(avgReach).toLocaleString()} avg reach</span>
+                            <button onClick={() => deleteStoryMonth(month)} className="ml-auto flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors">
+                              <Trash2 className="w-3 h-3" /> Remove
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Upload button */}
                   <label className="flex items-center gap-2 cursor-pointer w-fit">
                     <span className="text-xs bg-navy-900 border border-navy-600 rounded px-3 py-1.5 text-gray-300 hover:text-white hover:border-navy-500 transition-colors">
                       Upload Story CSV
                     </span>
                     <input type="file" accept=".csv" className="hidden"
-                      onChange={e => { const f = e.target.files?.[0]; if (f) parseStoryCsv(f); e.target.value = '' }} />
+                      onChange={e => { const f = e.target.files?.[0]; if (f) { parseStoryCsv(f); setIgCsvSaved(false) } e.target.value = '' }} />
                   </label>
+
+                  {/* Parsed preview */}
                   {igCsvParsed.length > 0 && (
                     <div className="mt-3 space-y-1.5">
                       {igCsvParsed.map(({ month, avgReach, count }) => {
                         const [yr, mo] = month.split('-')
                         const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+                        const isLocked = !!igSavedStoryMonths[month]
                         return (
                           <div key={month} className="flex items-center gap-3 text-xs">
-                            <span className="text-gray-500 w-28">{label}</span>
-                            <span className="text-white font-medium">{avgReach.toLocaleString()} avg reach</span>
-                            <span className="text-gray-500">({count} stories)</span>
+                            <span className={`w-28 ${isLocked ? 'text-gray-600' : 'text-gray-500'}`}>{label}</span>
+                            {isLocked
+                              ? <span className="text-gray-600 italic">Already saved — remove first to update</span>
+                              : <><span className="text-white font-medium">{avgReach.toLocaleString()} avg reach</span><span className="text-gray-500">({count} stories)</span></>
+                            }
                           </div>
                         )
                       })}
-                      <button onClick={saveStoryCsvData} disabled={igCsvSaving || igCsvSaved}
-                        className="mt-2 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs rounded border border-green-500/30 disabled:opacity-50 transition-colors">
-                        {igCsvSaved ? '✓ Saved' : igCsvSaving ? 'Saving...' : 'Save to Dashboard'}
-                      </button>
+                      {igCsvParsed.some(p => !igSavedStoryMonths[p.month]) && (
+                        <button onClick={saveStoryCsvData} disabled={igCsvSaving || igCsvSaved}
+                          className="mt-2 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs rounded border border-green-500/30 disabled:opacity-50 transition-colors">
+                          {igCsvSaved ? '✓ Saved' : igCsvSaving ? 'Saving...' : 'Save to Dashboard'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -548,7 +602,6 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 mb-4 p-4 bg-navy-800 rounded-xl border border-gray-700">
               <div className="bg-black border border-gray-600 p-2 rounded-lg"><Video className="w-5 h-5 text-white" /></div>
               <h3 className="text-xl font-bold text-white">TikTok</h3>
-              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">Connected via API</span>
               <button onClick={() => setShowTikTokManual(!showTikTokManual)}
                 className="ml-auto text-sm bg-navy-900 px-3 py-1 rounded-full text-gray-400 hover:text-white hover:bg-navy-700 transition-colors flex items-center gap-1">
                 <Settings className="w-3 h-3" /> Manual Input
