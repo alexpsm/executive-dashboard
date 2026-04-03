@@ -51,12 +51,12 @@ export async function GET() {
       { data: roiMetrics },
       { data: baselines }
     ] = await Promise.all([
-      // Financial KPIs (from new table)
+      // Financial KPIs — fetch all monthly entries for current year and SUM
       supabase
         .from('financial_kpis')
         .select('*')
-        .order('metric_date', { ascending: false })
-        .limit(1),
+        .gte('metric_date', `${new Date().getFullYear()}-01-01`)
+        .order('metric_date', { ascending: true }),
 
       // Revenue from invoices (backup)
       supabase
@@ -107,13 +107,9 @@ export async function GET() {
         .select('*')
     ])
 
-    // Get latest financial KPI
-    const latestFinancial = financialData?.[0]
-
-    // Note: Cross-platform revenue will be calculated after social data aggregation
-    // as it's YouTube ad revenue + Facebook platform revenue
-    const b2b_digital_sales = latestFinancial?.b2b_digital_sales || 0
-    const running_costs_saved = latestFinancial?.running_costs_saved || 0
+    // Sum all monthly financial KPI entries for the year
+    const b2b_digital_sales = financialData?.reduce((sum, row) => sum + (row.b2b_digital_sales || 0), 0) || 0
+    const running_costs_saved = financialData?.reduce((sum, row) => sum + (row.running_costs_saved || 0), 0) || 0
 
     // Pipeline value
     const pipeline_value = dealsData?.reduce((sum, d) => sum + (d.deal_value || 0), 0) || 0
@@ -185,8 +181,22 @@ export async function GET() {
         agg.reach = m.reach || agg.reach // Total video plays (any duration) - matches Business Manager
         agg.posts_count = m.posts_count || agg.posts_count
         agg.platform_revenue = m.platform_revenue || agg.platform_revenue // Manual input until API available
+      } else if (m.platform === 'tiktok') {
+        // TikTok: followers = total follower count (use latest)
+        // followers_gained = sum of daily_new_followers (gross, matches TikTok Business Suite)
+        agg.followers = m.followers || agg.followers // Latest total follower count
+        // posts_count stores daily_new_followers (followers_gained has a DB trigger overriding writes)
+        agg.followers_gained += m.posts_count || 0
+        agg.views += m.views || 0
+        // avg_reach_post is a YTD average (same value each day) — use latest non-null
+        agg.avg_reach_post = m.avg_reach_post || agg.avg_reach_post
+        // Track engagement for averaging
+        if (m.engagement > 0) {
+          agg.engagement_sum += m.engagement
+          agg.engagement_count++
+        }
       } else {
-        // YouTube/TikTok: SUM daily values
+        // YouTube: SUM daily values
         agg.views += m.views || 0
         agg.followers += m.followers || 0
         agg.followers_gained += m.followers_gained || 0
@@ -207,10 +217,13 @@ export async function GET() {
       }
     })
 
-    // Calculate average engagement rates for YouTube/TikTok
+    // Calculate average engagement rates for YouTube/TikTok, and avg reach for TikTok
     ytdSocial.forEach((agg) => {
       if (agg.engagement_count > 0) {
         agg.engagement = Math.round((agg.engagement_sum / agg.engagement_count) * 100) / 100
+      }
+      if (agg.platform === 'tiktok' && agg.avg_reach_post) {
+        agg.reach = agg.avg_reach_post
       }
     })
 
@@ -344,9 +357,10 @@ export async function GET() {
 
       tiktok: tiktok ? {
         // YTD Metrics
-        followers_gained: tiktok.followers_gained || tiktok.followers || 0,
+        followers_gained: tiktok.followers_gained || 0,
         engagement_rate: tiktok.engagement || 0,
-        reach: tiktok.reach || 0,
+        reach: tiktok.avg_reach_post || 0,
+        avg_reach_post: tiktok.avg_reach_post || 0,
         for_you_rate: tiktok.for_you_rate || 0,
         // Legacy
         followers: tiktok.followers || 0,
@@ -361,6 +375,7 @@ export async function GET() {
         views_3s: facebook.views_3s || facebook.views || 0, // 3-second video views
         views_1min: facebook.views_1min || 0, // 1-minute video views
         platform_revenue: facebook.platform_revenue || 0, // Platform revenue in 2026
+        story_impressions: facebook.story_impressions || 0, // Story impressions (manual entry — no API)
         posts_count: facebook.posts_count || 0, // Videos published in 2026
         // Legacy
         followers: facebook.followers || 0,
@@ -396,9 +411,9 @@ export async function GET() {
       active_deals: activeDealsCount || 0,
       pipeline_value,
 
-      // ROI
+      // ROI & Manual KPIs
       monthly_time_saved,
-      cost_savings: monthly_time_saved * 50,
+      cost_savings: running_costs_saved || (monthly_time_saved * 50),
 
       // Social detailed stats
       social: socialStats,
@@ -442,7 +457,7 @@ export async function GET() {
         calendar: calendarStatus.success,
         instagram: hasMetaCredentials,
         facebook: hasMetaCredentials,
-        tiktok: false // TikTok API is restricted, always manual
+        tiktok: true // TikTok Business API connected via OAuth
       },
       syncStatus: Object.fromEntries(syncStatusMap),
       stats,

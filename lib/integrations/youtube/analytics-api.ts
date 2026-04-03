@@ -409,9 +409,9 @@ class YouTubeAnalyticsClient {
       // This includes views on ANY video (old or new) - for dashboard totals
       const viewsBreakdown = await this.getViewsBreakdownDuringPeriod(startDate, endDate)
 
-      // Calculate net subscribers gained in 2026
+      // Gross subscribers gained in 2026 (not net — matches YouTube Studio "Subscribers" tab)
       const subscribersGained = analytics
-        ? (analytics.subscribersGained - analytics.subscribersLost)
+        ? analytics.subscribersGained
         : 0
 
       // Use the views breakdown for total/shorts/video views

@@ -1,3 +1,12 @@
+export interface TikTokTokens {
+  access_token: string
+  open_id: string
+  refresh_token: string
+  scope: string
+  expires_at: number
+  obtained_at: number
+}
+
 export interface TikTokAccount {
   followers: number
   following: number

@@ -83,92 +83,46 @@ class FacebookClient {
     }
   }
 
-  // Get monetization earnings for YTD - tries multiple endpoints
-  async getMonetizationEarnings(startDate: string, endDate: string): Promise<{ revenue: number; method: string }> {
+  // Get monetization earnings for YTD
+  async getMonetizationEarnings(startDate: string, endDate: string): Promise<{ revenue: number; method: string; raw?: any }> {
     if (!this.pageId) return { revenue: 0, method: 'no_page' }
 
-    // Try content_monetization_earnings endpoint first (Business Manager -> Insights -> Revenue)
+    // monetization_approximate_earnings via the standard /insights endpoint
+    // Response: { data: [{ name, period, values: [{ value, end_time }] }] }
     try {
-      const response = await this.apiRequest<{ data: Array<{ earnings: { amount: number; currency: string } | number }> }>(
-        `/${this.pageId}/content_monetization_earnings`,
+      const response = await this.apiRequest<{
+        data: Array<{ name: string; period: string; values: Array<{ value: number; end_time: string }> }>
+        error?: { message: string; code: number }
+      }>(
+        `/${this.pageId}/insights`,
         {
+          metric: 'monetization_approximate_earnings',
+          period: 'day',
           since: startDate,
           until: endDate
         }
       )
 
-      let totalEarnings = 0
-      if (response.data) {
-        for (const entry of response.data) {
-          // Handle both formats: {earnings: {amount, currency}} or {earnings: number}
-          const earnings = typeof entry.earnings === 'object'
-            ? entry.earnings.amount
-            : entry.earnings
-          totalEarnings += earnings || 0
-        }
+      if (response.error) {
+        console.log('Facebook monetization_approximate_earnings error:', response.error.message)
+        return { revenue: 0, method: 'api_error', raw: response.error }
       }
 
+      const metric = response.data?.find(m => m.name === 'monetization_approximate_earnings')
+      const totalEarnings = metric?.values?.reduce((sum, v) => sum + (v.value || 0), 0) || 0
+
+      console.log(`Facebook monetization_approximate_earnings: £${totalEarnings} (${metric?.values?.length || 0} days)`)
       if (totalEarnings > 0) {
-        console.log(`Facebook: content_monetization_earnings returned £${totalEarnings}`)
-        return { revenue: totalEarnings, method: 'content_monetization_earnings' }
-      }
-    } catch (error: any) {
-      console.log('Facebook content_monetization_earnings:', error.response?.data?.error?.message || error.message)
-    }
-
-    // Try video_monetization_insights endpoint
-    try {
-      const response = await this.apiRequest<{ data: Array<{ values: Array<{ value: number }> }> }>(
-        `/${this.pageId}/video_monetization_insights`,
-        {
-          since: startDate,
-          until: endDate
-        }
-      )
-
-      let totalEarnings = 0
-      if (response.data) {
-        for (const metric of response.data) {
-          const sum = metric.values?.reduce((acc, v) => acc + (v.value || 0), 0) || 0
-          totalEarnings += sum
-        }
-      }
-
-      if (totalEarnings > 0) {
-        console.log(`Facebook: video_monetization_insights returned £${totalEarnings}`)
-        return { revenue: totalEarnings, method: 'video_monetization_insights' }
-      }
-    } catch (error: any) {
-      console.log('Facebook video_monetization_insights:', error.response?.data?.error?.message || error.message)
-    }
-
-    // Try monetization_approximate_earnings endpoint (legacy)
-    try {
-      const response = await this.apiRequest<{ data: Array<{ approximate_earnings: number }> }>(
-        `/${this.pageId}/monetization_approximate_earnings`,
-        {
-          since: startDate,
-          until: endDate
-        }
-      )
-
-      let totalEarnings = 0
-      if (response.data) {
-        for (const entry of response.data) {
-          totalEarnings += entry.approximate_earnings || 0
-        }
-      }
-
-      if (totalEarnings > 0) {
-        console.log(`Facebook: monetization_approximate_earnings returned £${totalEarnings}`)
         return { revenue: totalEarnings, method: 'monetization_approximate_earnings' }
       }
-    } catch (error: any) {
-      console.log('Facebook monetization_approximate_earnings:', error.response?.data?.error?.message || error.message)
-    }
 
-    console.log('Facebook: No monetization endpoint returned data - revenue requires manual input')
-    return { revenue: 0, method: 'not_available' }
+      // Return raw response for debugging if 0
+      return { revenue: 0, method: 'zero_returned', raw: response.data?.slice(0, 2) }
+    } catch (error: any) {
+      const msg = error.response?.data?.error?.message || error.message
+      console.log('Facebook monetization_approximate_earnings exception:', msg)
+      return { revenue: 0, method: 'exception', raw: msg }
+    }
   }
 
   // Get followers gained YTD using baseline comparison method

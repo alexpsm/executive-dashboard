@@ -37,11 +37,8 @@ export default function Header({ overdueCount = 0, overdueProjects = 0, onSync, 
   // Main nav items (shown in header)
   const navItems = [
     { id: 'dashboard', href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'social', href: '/social', label: 'Social', icon: Users },
     { id: 'analytics', href: '/analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'competitors', href: '/competitors', label: 'Competitors', icon: Swords },
-    { id: 'forecast', href: '/forecast', label: 'Forecast', icon: TrendingUp },
-    { id: 'invoices', href: '/invoices', label: 'Invoices', icon: DollarSign },
   ]
 
   const isActive = (href: string) => pathname === href
@@ -153,13 +150,6 @@ export default function Header({ overdueCount = 0, overdueProjects = 0, onSync, 
                             <div>
                               <p className="text-sm font-medium text-cream-100">Overdue Invoices</p>
                               <p className="text-xs text-brand-red mt-1">You have {overdueCount} overdue invoice(s).</p>
-                              <Link
-                                href="/invoices"
-                                onClick={() => setShowNotifications(false)}
-                                className="text-xs text-gold-500 hover:underline mt-2 block"
-                              >
-                                View Invoices
-                              </Link>
                             </div>
                           </div>
                         )}
@@ -170,13 +160,6 @@ export default function Header({ overdueCount = 0, overdueProjects = 0, onSync, 
                             <div>
                               <p className="text-sm font-medium text-cream-100">Overdue Projects</p>
                               <p className="text-xs text-gold-500 mt-1">You have {overdueProjects} project(s) past due.</p>
-                              <Link
-                                href="/projects"
-                                onClick={() => setShowNotifications(false)}
-                                className="text-xs text-gold-500 hover:underline mt-2 block"
-                              >
-                                View Projects
-                              </Link>
                             </div>
                           </div>
                         )}

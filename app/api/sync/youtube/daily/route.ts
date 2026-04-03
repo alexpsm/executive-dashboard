@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
           metric_date: date,
           views,
           yt_ad_revenue: revenueGBP,
-          followers: subscribersGained - subscribersLost,
+          followers: subscribersGained,
           followers_gained: subscribersGained,
           engagement: Math.round(engagementRate * 100) / 100,
           api_source: 'api'

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+export const dynamic = 'force-dynamic'
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
@@ -23,9 +25,13 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url)
         const days = parseInt(searchParams.get('days') || '30')
 
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        // Pass cache: 'no-store' to bypass Next.js 14 Data Cache on Supabase fetch calls
+        const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+            global: { fetch: (url: RequestInfo | URL, init?: RequestInit) => fetch(url, { ...init, cache: 'no-store' }) }
+        })
 
-        const endDate = new Date().toISOString().split('T')[0]
+        // Cap at yesterday — all platform syncs store yesterday's data, so today always shows a zero-drop
+        const endDate = new Date(Date.now() - 86400000).toISOString().split('T')[0]
         const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
         // Get daily metrics for the specified period
@@ -37,6 +43,7 @@ export async function GET(request: Request) {
             .gte('metric_date', startDate)
             .lte('metric_date', endDate)
             .order('metric_date', { ascending: true })
+            .order('created_at', { ascending: true })
 
         if (error) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 })
@@ -51,11 +58,20 @@ export async function GET(request: Request) {
             byDate.set(date, { date, youtube: null, instagram: null, facebook: null, tiktok: null })
         }
 
-        // Fill in actual data where available
-        for (const row of data || []) {
+        // Fill in actual data where available.
+        // If there are duplicate rows for the same (platform, metric_date) — which can happen
+        // when the unique constraint is missing — prefer the most recently created row.
+        const sortedData = (data || []).slice().sort((a, b) =>
+            (a.created_at || '').localeCompare(b.created_at || '')
+        )
+        for (const row of sortedData) {
             const date = row.metric_date
             if (byDate.has(date)) {
-                byDate.get(date)[row.platform] = row
+                // TikTok: followers_gained has a DB trigger; posts_count stores daily_new_followers
+                const mapped = row.platform === 'tiktok'
+                    ? { ...row, followers_gained: row.posts_count ?? row.followers_gained }
+                    : row
+                byDate.get(date)[row.platform] = mapped
             }
         }
 
@@ -89,7 +105,7 @@ export async function GET(request: Request) {
             success: true,
             days,
             startDate,
-            endDate: new Date().toISOString().split('T')[0],
+            endDate,
             totals,
             daily: Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date))
         })

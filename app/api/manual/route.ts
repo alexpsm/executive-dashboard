@@ -128,6 +128,16 @@ export async function POST(request: Request) {
             running_costs_baseline: metric.metric_value
           }, { onConflict: 'metric_date' })
       }
+
+      // Update dashboard KPIs (B2B Digital Sales, Running Costs Saved)
+      if (metric.metric_key === 'b2b_digital_sales' || metric.metric_key === 'running_costs_saved') {
+        await supabase
+          .from('financial_kpis')
+          .upsert({
+            metric_date: metric.metric_date,
+            [metric.metric_key]: metric.metric_value
+          }, { onConflict: 'metric_date' })
+      }
     }
 
     return NextResponse.json({

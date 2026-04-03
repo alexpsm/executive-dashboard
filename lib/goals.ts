@@ -60,11 +60,12 @@ export const KPI_GOALS_2026 = {
   // FACEBOOK GOALS
   // ==========================================
   FACEBOOK: {
-    FOLLOWERS: 188000,       // Total followers
-    REVENUE: 80000,          // Platform revenue (£)
-    TOTAL_VIEWS: 670000000,  // Total video views (670M)
-    VIEWS_3S: 75000000,      // 3-second views (75M)
-    VIEWS_1MIN: 11250000     // 1-minute views (11.25M)
+    FOLLOWERS: 188000,          // Total followers
+    REVENUE: 80000,             // Platform revenue (£)
+    TOTAL_VIEWS: 670000000,     // Total video views (670M)
+    VIEWS_3S: 75000000,         // 3-second views (75M)
+    VIEWS_1MIN: 11250000,       // 1-minute views (11.25M)
+    STORY_IMPRESSIONS: 22000000 // Story impressions (manual entry)
   }
 }
 

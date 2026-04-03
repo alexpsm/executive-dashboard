@@ -343,8 +343,8 @@ export async function GET(request: NextRequest) {
       .upsert({
         platform: 'youtube',
         metric_date: endDate,
-        followers: subscribersGained - subscribersLost,
-        subscribers: subscribersGained - subscribersLost,
+        followers: subscribersGained,
+        subscribers: subscribersGained,
         views,
         posts_count: videosInMonth + shortsInMonth,
         shorts_views: shortsViews,
