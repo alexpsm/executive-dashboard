@@ -85,6 +85,11 @@ export default function Dashboard() {
   const [tiktokReach, setTiktokReach] = useState('')
   const [tiktokPricePost, setTiktokPricePost] = useState('')
 
+  // Instagram story CSV upload
+  const [igCsvParsed, setIgCsvParsed] = useState<{ month: string; avgReach: number; count: number }[]>([])
+  const [igCsvSaving, setIgCsvSaving] = useState(false)
+  const [igCsvSaved, setIgCsvSaved] = useState(false)
+
   // Generate month options: Jan 2026 → current month
   const monthOptions = (() => {
     const opts = []
@@ -185,6 +190,69 @@ export default function Dashboard() {
       await fetchData()
     } catch (err) { console.error('Failed to save:', err) }
     setSaving(false)
+  }
+
+  const parseStoryCsv = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      const parseCSVLine = (line: string) => {
+        const result: string[] = []
+        let cur = '', inQ = false
+        for (const ch of line) {
+          if (ch === '"') inQ = !inQ
+          else if (ch === ',' && !inQ) { result.push(cur); cur = '' }
+          else cur += ch
+        }
+        result.push(cur)
+        return result
+      }
+      const lines = text.split('\n').filter(l => l.trim())
+      if (lines.length < 2) return
+      const headers = parseCSVLine(lines[0]).map(h => h.replace(/"/g, '').trim())
+      const publishIdx = headers.indexOf('Publish time')
+      const reachIdx = headers.indexOf('Reach')
+      if (publishIdx === -1 || reachIdx === -1) return
+      const monthGroups: Record<string, number[]> = {}
+      for (const line of lines.slice(1)) {
+        const vals = parseCSVLine(line)
+        const publishTime = vals[publishIdx]?.replace(/"/g, '').trim()
+        const reach = parseInt(vals[reachIdx]?.replace(/"/g, '').trim()) || 0
+        if (!publishTime || !reach) continue
+        const parts = publishTime.split(' ')[0].split('/')
+        const monthKey = `${parts[2]}-${parts[0].padStart(2, '0')}`
+        if (!monthGroups[monthKey]) monthGroups[monthKey] = []
+        monthGroups[monthKey].push(reach)
+      }
+      const parsed = Object.entries(monthGroups)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, reaches]) => ({
+          month,
+          avgReach: Math.round(reaches.reduce((a, b) => a + b, 0) / reaches.length),
+          count: reaches.length
+        }))
+      setIgCsvParsed(parsed)
+      setIgCsvSaved(false)
+    }
+    reader.readAsText(file)
+  }
+
+  const saveStoryCsvData = async () => {
+    setIgCsvSaving(true)
+    try {
+      for (const { month, avgReach } of igCsvParsed) {
+        await fetch('/api/manual', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            metrics: [{ platform: 'instagram', metric_key: 'instagram_avg_reach_story', metric_value: avgReach, metric_date: `${month}-01` }]
+          })
+        })
+      }
+      setIgCsvSaved(true)
+      await fetchData()
+    } catch (e) { console.error(e) }
+    setIgCsvSaving(false)
   }
 
   const pct = (current: number, goal: number) =>
@@ -431,6 +499,37 @@ export default function Dashboard() {
                       <Check className="w-4 h-4 text-green-500" />
                     </button>
                   </div>
+                </div>
+
+                {/* Story Reach CSV Upload */}
+                <div className="mt-4 pt-4 border-t border-navy-700">
+                  <p className="text-xs text-gray-500 mb-2">Or calculate avg story reach automatically from a Business Manager CSV export:</p>
+                  <label className="flex items-center gap-2 cursor-pointer w-fit">
+                    <span className="text-xs bg-navy-900 border border-navy-600 rounded px-3 py-1.5 text-gray-300 hover:text-white hover:border-navy-500 transition-colors">
+                      Upload Story CSV
+                    </span>
+                    <input type="file" accept=".csv" className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) parseStoryCsv(f); e.target.value = '' }} />
+                  </label>
+                  {igCsvParsed.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {igCsvParsed.map(({ month, avgReach, count }) => {
+                        const [yr, mo] = month.split('-')
+                        const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+                        return (
+                          <div key={month} className="flex items-center gap-3 text-xs">
+                            <span className="text-gray-500 w-28">{label}</span>
+                            <span className="text-white font-medium">{avgReach.toLocaleString()} avg reach</span>
+                            <span className="text-gray-500">({count} stories)</span>
+                          </div>
+                        )
+                      })}
+                      <button onClick={saveStoryCsvData} disabled={igCsvSaving || igCsvSaved}
+                        className="mt-2 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs rounded border border-green-500/30 disabled:opacity-50 transition-colors">
+                        {igCsvSaved ? '✓ Saved' : igCsvSaving ? 'Saving...' : 'Save to Dashboard'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
