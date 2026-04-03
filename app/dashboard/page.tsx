@@ -93,6 +93,8 @@ export default function Dashboard() {
   const [igSavedValues, setIgSavedValues] = useState<Record<string, Record<string, number>>>({})
   // TikTok per-month saved price
   const [ttSavedValues, setTtSavedValues] = useState<Record<string, number>>({})
+  // YouTube per-month saved CTR
+  const [ytSavedValues, setYtSavedValues] = useState<Record<string, number>>({})
 
   // Generate month options: Jan 2026 → current month
   const monthOptions = (() => {
@@ -178,6 +180,12 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ metrics: [{ metric_key: metricKey, metric_value: value, metric_date: `${selectedMonth}-01` }] })
       })
+      if (metricKey === 'b2b_digital_sales') {
+        setB2bHistory(prev => [...prev.filter(h => h.month !== selectedMonth), { month: selectedMonth, value }])
+      }
+      if (metricKey === 'running_costs_saved') {
+        setCostsHistory(prev => [...prev.filter(h => h.month !== selectedMonth), { month: selectedMonth, value }])
+      }
       await fetchData()
     } catch (err) { console.error('Failed to save:', err) }
     setSaving(false)
@@ -197,6 +205,9 @@ export default function Dashboard() {
       }
       if (platform === 'tiktok' && metricKey === 'tiktok_price_per_post') {
         setTtSavedValues(prev => ({ ...prev, [selectedMonth]: value }))
+      }
+      if (platform === 'youtube' && metricKey === 'youtube_ctr') {
+        setYtSavedValues(prev => ({ ...prev, [selectedMonth]: value }))
       }
       await fetchData()
     } catch (err) { console.error('Failed to save:', err) }
@@ -218,6 +229,19 @@ export default function Dashboard() {
     if (!showTikTokManual) return
     setTiktokPricePost(ttSavedValues[selectedMonth] ? String(ttSavedValues[selectedMonth]) : '')
   }, [selectedMonth, showTikTokManual, ttSavedValues])
+
+  useEffect(() => {
+    if (!showYouTubeManual) return
+    setManualCtr(ytSavedValues[selectedMonth] ? String(ytSavedValues[selectedMonth]) : '')
+  }, [selectedMonth, showYouTubeManual, ytSavedValues])
+
+  useEffect(() => {
+    if (!showKPIManual) return
+    const b2b = b2bHistory.find(h => h.month === selectedMonth)
+    setB2bValue(b2b ? String(b2b.value) : '')
+    const costs = costsHistory.find(h => h.month === selectedMonth)
+    setCostsValue(costs ? String(costs.value) : '')
+  }, [selectedMonth, showKPIManual, b2bHistory, costsHistory])
 
   const parseStoryCsv = (file: File) => {
     const reader = new FileReader()
@@ -276,6 +300,19 @@ export default function Dashboard() {
         byMonth[mo][m.metric_key] = m.metric_value
       }
       setIgSavedValues(byMonth)
+    } catch (e) { console.error(e) }
+  }
+
+  const loadYouTubeSavedValues = async () => {
+    try {
+      const res = await fetch('/api/manual?metric_key=youtube_ctr&platform=youtube')
+      const data = await res.json()
+      const byMonth: Record<string, number> = {}
+      for (const m of data.metrics || []) {
+        const mo = m.metric_date?.slice(0, 7)
+        if (mo) byMonth[mo] = m.metric_value
+      }
+      setYtSavedValues(byMonth)
     } catch (e) { console.error(e) }
   }
 
@@ -383,7 +420,7 @@ export default function Dashboard() {
                     <span className="text-sm text-gray-400">£</span>
                     <input type="number" value={b2bValue} onChange={e => setB2bValue(e.target.value)}
                       className="flex-1 px-2 py-1 bg-navy-900 border border-navy-600 rounded text-cream-100 text-sm" placeholder="0" />
-                    <button onClick={() => { saveManualKPI('b2b_digital_sales', parseFloat(b2bValue) || 0); setB2bValue('') }} disabled={saving || !b2bValue}
+                    <button onClick={() => saveManualKPI('b2b_digital_sales', parseFloat(b2bValue) || 0)} disabled={saving || !b2bValue}
                       className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50"><Check className="w-4 h-4 text-green-500" /></button>
                   </div>
                 </div>
@@ -393,7 +430,7 @@ export default function Dashboard() {
                     <span className="text-sm text-gray-400">£</span>
                     <input type="number" value={costsValue} onChange={e => setCostsValue(e.target.value)}
                       className="flex-1 px-2 py-1 bg-navy-900 border border-navy-600 rounded text-cream-100 text-sm" placeholder="0" />
-                    <button onClick={() => { saveManualKPI('running_costs_saved', parseFloat(costsValue) || 0); setCostsValue('') }} disabled={saving || !costsValue}
+                    <button onClick={() => saveManualKPI('running_costs_saved', parseFloat(costsValue) || 0)} disabled={saving || !costsValue}
                       className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50"><Check className="w-4 h-4 text-green-500" /></button>
                   </div>
                 </div>
@@ -486,7 +523,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 mb-4 p-4 bg-navy-800 rounded-xl border border-red-900/30">
               <div className="bg-red-600 p-2 rounded-lg"><Youtube className="w-5 h-5 text-white" /></div>
               <h3 className="text-xl font-bold text-white">YouTube</h3>
-              <button onClick={() => setShowYouTubeManual(!showYouTubeManual)}
+              <button onClick={() => { const next = !showYouTubeManual; setShowYouTubeManual(next); if (next) loadYouTubeSavedValues() }}
                 className="ml-auto text-sm bg-navy-900 px-3 py-1 rounded-full text-gray-400 hover:text-white hover:bg-navy-700 transition-colors flex items-center gap-1">
                 <Settings className="w-3 h-3" /> Manual Input
               </button>
@@ -506,7 +543,7 @@ export default function Dashboard() {
                     <input type="number" step="0.1" value={manualCtr} onChange={e => setManualCtr(e.target.value)}
                       placeholder="5.2" className="bg-navy-900 border border-navy-600 rounded px-2 py-1 text-white text-sm w-20" />
                     <span className="text-gray-400 text-sm">%</span>
-                    <button onClick={() => { saveSocialMetric('youtube', 'youtube_ctr', parseFloat(manualCtr)); setManualCtr('') }}
+                    <button onClick={() => saveSocialMetric('youtube', 'youtube_ctr', parseFloat(manualCtr))}
                       disabled={saving || !manualCtr} className="p-1 bg-green-500/20 rounded hover:bg-green-500/30 disabled:opacity-50">
                       <Check className="w-4 h-4 text-green-500" />
                     </button>
