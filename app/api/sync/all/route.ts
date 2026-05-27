@@ -126,9 +126,5 @@ export async function POST() {
 }
 
 export async function GET() {
-  // Return sync status for all platforms
-  return NextResponse.json({
-    platforms: ['xero', 'youtube', 'instagram', 'facebook', 'tiktok', 'monday'],
-    message: 'Use POST to trigger sync for all platforms'
-  })
+  return POST()
 }

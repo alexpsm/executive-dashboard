@@ -156,10 +156,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({
-    info: 'POST to sync daily YouTube metrics',
-    params: {
-      days: 'Number of days to sync (default: 30)'
-    }
-  })
+  const url = new URL('http://localhost/api/sync/youtube/daily?days=2')
+  return POST(new Request(url) as any)
 }

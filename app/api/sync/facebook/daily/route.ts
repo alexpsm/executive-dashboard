@@ -289,11 +289,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({
-    info: 'POST to sync daily Facebook metrics',
-    params: {
-      days: 'Number of days to sync (default: 30)',
-      ytd: 'Set to "true" for full year-to-date sync from Jan 1'
-    }
-  })
+  const url = new URL('http://localhost/api/sync/facebook/daily?days=2')
+  return POST(new Request(url) as any)
 }

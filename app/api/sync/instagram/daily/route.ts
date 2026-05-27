@@ -206,10 +206,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({
-    info: 'POST to sync daily Instagram metrics',
-    params: {
-      days: 'Number of days to sync (default: 30, max ~30 due to API limits)'
-    }
-  })
+  const url = new URL('http://localhost/api/sync/instagram/daily?days=2')
+  return POST(new Request(url) as any)
 }
