@@ -548,21 +548,24 @@ class InstagramClient {
       // We don't store them in social_metrics to avoid overwriting daily values
       // The health API fetches current followers from the API and calculates YTD gained
 
-      // Update today's daily record with aggregate metrics
-      // Don't touch 'followers' - let it keep the daily value from daily sync
-      // The daily sync stores actual daily follower gains (e.g., 300 per day)
-      // We only update engagement, reach, and posts_count here
+      // Upsert today's daily record with aggregate metrics.
+      // Using upsert (not update) so the row is created if it doesn't exist yet
+      // (e.g. when /api/sync/all runs before the daily sync).
+      // 'followers' and 'reach' are intentionally excluded — they hold the
+      // daily net-gain values written by the daily sync and must not be
+      // overwritten by this full-sync pass.
       const { error: metricsError } = await this.supabase
         .from('social_metrics')
-        .update({
+        .upsert({
+          platform: 'instagram',
+          metric_date: todayStr,
           posts_count: ytdMedia.length,
           engagement: engagementRate,
           avg_reach_post: avgReachPost,
           views: totalReachPost,
-          story_reach: avgReachStory
-        })
-        .eq('platform', 'instagram')
-        .eq('metric_date', todayStr)
+          story_reach: avgReachStory,
+          api_source: 'api'
+        }, { onConflict: 'platform,metric_date' })
 
       if (metricsError) {
         console.error('Instagram social_metrics upsert error:', metricsError)
