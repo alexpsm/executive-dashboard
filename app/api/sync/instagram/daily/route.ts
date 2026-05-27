@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Get current follower count for engagement calculation
     const accountResponse = await fetch(
-      `https://graph.facebook.com/v19.0/${igAccountId}?fields=followers_count&access_token=${accessToken}`
+      `https://graph.facebook.com/v22.0/${igAccountId}?fields=followers_count&access_token=${accessToken}`
     )
     const accountData = await accountResponse.json()
     const currentFollowers = accountData.followers_count || 0
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Get follower count daily breakdown
     // Note: 'impressions' deprecated in API v22.0, using reach and views instead
     const insightsResponse = await fetch(
-      `https://graph.facebook.com/v19.0/${igAccountId}/insights?metric=follower_count,reach&period=day&since=${since}&until=${until}&access_token=${accessToken}`
+      `https://graph.facebook.com/v22.0/${igAccountId}/insights?metric=follower_count,reach&period=day&since=${since}&until=${until}&access_token=${accessToken}`
     )
     const insightsData = await insightsResponse.json()
 

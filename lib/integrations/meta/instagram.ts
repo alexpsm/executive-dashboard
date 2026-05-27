@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { InstagramAccount, InstagramMedia, InstagramInsights, InstagramSyncResult } from './types'
 import { saveDemographicSnapshot } from '../demographics'
 
-const GRAPH_API_URL = 'https://graph.facebook.com/v19.0'
+const GRAPH_API_URL = 'https://graph.facebook.com/v22.0'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 

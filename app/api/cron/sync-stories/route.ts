@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import axios from 'axios'
 
-const GRAPH_API_URL = 'https://graph.facebook.com/v19.0'
+const GRAPH_API_URL = 'https://graph.facebook.com/v22.0'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for cron

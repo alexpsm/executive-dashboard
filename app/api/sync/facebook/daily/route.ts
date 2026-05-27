@@ -12,7 +12,7 @@ export const maxDuration = 120 // Allow more time for full YTD sync
 async function getPageAccessToken(userAccessToken: string, pageId: string): Promise<string> {
   try {
     const response = await fetch(
-      `https://graph.facebook.com/v19.0/me/accounts?access_token=${userAccessToken}`
+      `https://graph.facebook.com/v22.0/me/accounts?access_token=${userAccessToken}`
     )
     const data = await response.json()
     const page = data.data?.find((p: any) => p.id === pageId)
@@ -46,7 +46,7 @@ async function fetchInsightsBatch(
   // Fetch page_follows (cumulative daily totals)
   try {
     const followsResponse = await fetch(
-      `https://graph.facebook.com/v19.0/${pageId}/insights?metric=page_follows&period=day&since=${since}&until=${until}&access_token=${pageAccessToken}`
+      `https://graph.facebook.com/v22.0/${pageId}/insights?metric=page_follows&period=day&since=${since}&until=${until}&access_token=${pageAccessToken}`
     )
     const followsData = await followsResponse.json()
     if (followsData.error) {
@@ -61,7 +61,7 @@ async function fetchInsightsBatch(
   // Fetch video views (3-second views)
   try {
     const viewsResponse = await fetch(
-      `https://graph.facebook.com/v19.0/${pageId}/insights?metric=page_video_views&period=day&since=${since}&until=${until}&access_token=${pageAccessToken}`
+      `https://graph.facebook.com/v22.0/${pageId}/insights?metric=page_video_views&period=day&since=${since}&until=${until}&access_token=${pageAccessToken}`
     )
     const viewsData = await viewsResponse.json()
     if (viewsData.error) {
@@ -81,7 +81,7 @@ async function fetchInsightsBatch(
     if (impressions.length > 0) break // Stop if we got data
     try {
       const impressionsResponse = await fetch(
-        `https://graph.facebook.com/v19.0/${pageId}/insights?metric=${metric}&period=day&since=${since}&until=${until}&access_token=${pageAccessToken}`
+        `https://graph.facebook.com/v22.0/${pageId}/insights?metric=${metric}&period=day&since=${since}&until=${until}&access_token=${pageAccessToken}`
       )
       const impressionsData = await impressionsResponse.json()
       if (impressionsData.error) {

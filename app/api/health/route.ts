@@ -238,7 +238,7 @@ export async function GET() {
         const igAccountId = process.env.INSTAGRAM_ACCOUNT_ID
         if (accessToken && igAccountId) {
           const igResponse = await fetch(
-            `https://graph.facebook.com/v19.0/${igAccountId}?fields=followers_count&access_token=${accessToken}`
+            `https://graph.facebook.com/v22.0/${igAccountId}?fields=followers_count&access_token=${accessToken}`
           )
           const igData = await igResponse.json()
           const currentFollowers = igData.followers_count || 0
@@ -259,7 +259,7 @@ export async function GET() {
         const pageId = process.env.FACEBOOK_PAGE_ID
         if (accessToken && pageId) {
           const fbResponse = await fetch(
-            `https://graph.facebook.com/v19.0/${pageId}?fields=followers_count,fan_count&access_token=${accessToken}`
+            `https://graph.facebook.com/v22.0/${pageId}?fields=followers_count,fan_count&access_token=${accessToken}`
           )
           const fbData = await fbResponse.json()
           const currentFollowers = fbData.followers_count || fbData.fan_count || 0
