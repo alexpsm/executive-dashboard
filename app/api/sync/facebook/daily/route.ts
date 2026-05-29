@@ -105,7 +105,7 @@ async function fetchInsightsBatch(
 // Sync daily Facebook metrics for the Analytics section
 // Supports full YTD sync by batching in 90-day chunks
 export async function POST(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
+  const searchParams = (request.nextUrl || new URL(request.url)).searchParams
   const daysBack = parseInt(searchParams.get('days') || '30')
   const fullYTD = searchParams.get('ytd') === 'true' // ?ytd=true for full year
 

@@ -14,7 +14,7 @@ const USD_TO_GBP = 0.79
 // Sync daily YouTube metrics for the Analytics section
 // This stores each day's metrics separately (not cumulative)
 export async function POST(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
+  const searchParams = (request.nextUrl || new URL(request.url)).searchParams
   const daysBack = parseInt(searchParams.get('days') || '30')
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey)

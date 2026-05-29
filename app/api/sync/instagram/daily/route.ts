@@ -9,7 +9,7 @@ export const maxDuration = 60
 
 // Sync daily Instagram metrics for the Analytics section
 export async function POST(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
+  const searchParams = (request.nextUrl || new URL(request.url)).searchParams
   const daysBack = parseInt(searchParams.get('days') || '30')
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
